@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Cons Game</title>
+<title>Flappy Bat – Average Mode</title>
 
 <meta name="viewport"
-content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <style>
 html, body {
@@ -14,14 +14,11 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #000;
-  touch-action: none;
+  background: black;
 }
 
 canvas {
   display: block;
-  width: 100vw;
-  height: 100vh;
 }
 </style>
 </head>
@@ -30,139 +27,171 @@ canvas {
 <canvas id="game"></canvas>
 
 <script>
+/* ======================
+   SETUP
+====================== */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 function resize() {
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = innerWidth * dpr;
-  canvas.height = innerHeight * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
 resize();
-addEventListener("resize", resize);
+window.addEventListener("resize", resize);
 
-// Game variables
-let gravity = 0.6;
-let jump = -9.5;
+/* ======================
+   AVERAGE MODE SETTINGS
+====================== */
+let gravity = 0.5;        // heavier than easy
+let jumpPower = -10.5;    // weaker jump
+let speed = 3;            // faster obstacles
+let gap = 150;            // tighter gap
+
 let score = 0;
 let gameOver = false;
 
-// Ball (Bat-signal orb)
-let ball = {
-  x: innerWidth * 0.25,
-  y: innerHeight / 2,
+/* ======================
+   PLAYER
+====================== */
+let bat = {
+  x: canvas.width * 0.25,
+  y: canvas.height / 2,
   r: 14,
   vy: 0
 };
 
-// Hoops (Gotham towers)
-let hoops = [];
-let hoopGap = 170;
-let hoopWidth = 70;
-let speed = 2.7;
+/* ======================
+   OBSTACLES
+====================== */
+let pipes = [];
+let width = 70;
 
-function spawnHoop() {
-  let y = Math.random() * (innerHeight - 320) + 160;
-  hoops.push({ x: innerWidth, y, passed: false });
+function spawnPipe() {
+  let y = Math.random() * (canvas.height - 280) + 140;
+  pipes.push({ x: canvas.width, y, passed: false });
 }
-setInterval(spawnHoop, 1800);
+setInterval(spawnPipe, 1700);
 
-// Controls
-addEventListener("touchstart", input, { passive: false });
-addEventListener("mousedown", input);
+/* ======================
+   INPUT
+====================== */
+document.addEventListener("touchstart", flap);
+document.addEventListener("mousedown", flap);
 
-function input(e) {
+function flap(e) {
   e.preventDefault();
-  if (!gameOver) ball.vy = jump;
-  else reset();
+
+  if (gameOver) {
+    reset();
+    return;
+  }
+
+  // remove downward momentum
+  if (bat.vy > 0) bat.vy = 0;
+  bat.vy += jumpPower;
 }
 
+/* ======================
+   RESET
+====================== */
 function reset() {
   score = 0;
-  hoops = [];
-  ball.y = innerHeight / 2;
-  ball.vy = 0;
+  pipes = [];
+  bat.y = canvas.height / 2;
+  bat.vy = 0;
   gameOver = false;
 }
 
-// Update
+/* ======================
+   UPDATE
+====================== */
 function update() {
   if (gameOver) return;
 
-  ball.vy += gravity;
-  ball.y += ball.vy;
+  bat.vy += gravity;
+  bat.y += bat.vy;
 
-  if (ball.y < 0 || ball.y > innerHeight) gameOver = true;
+  if (bat.y < 0 || bat.y > canvas.height) {
+    gameOver = true;
+  }
 
-  hoops.forEach(h => {
-    h.x -= speed;
+  pipes.forEach(p => {
+    p.x -= speed;
 
-    if (!h.passed && h.x + hoopWidth < ball.x) {
+    if (!p.passed && p.x + width < bat.x) {
       score++;
-      h.passed = true;
+      p.passed = true;
     }
 
     if (
-      ball.x + ball.r > h.x &&
-      ball.x - ball.r < h.x + hoopWidth &&
-      (ball.y - ball.r < h.y - hoopGap / 2 ||
-       ball.y + ball.r > h.y + hoopGap / 2)
-    ) gameOver = true;
+      bat.x + bat.r > p.x &&
+      bat.x - bat.r < p.x + width &&
+      (bat.y - bat.r < p.y - gap / 2 ||
+       bat.y + bat.r > p.y + gap / 2)
+    ) {
+      gameOver = true;
+    }
   });
 
-  hoops = hoops.filter(h => h.x + hoopWidth > 0);
+  pipes = pipes.filter(p => p.x + width > 0);
 }
 
-// Draw
+/* ======================
+   DRAW
+====================== */
 function draw() {
   // Gotham background
-  let grad = ctx.createLinearGradient(0, 0, 0, innerHeight);
-  grad.addColorStop(0, "#020202");
-  grad.addColorStop(1, "#1a1a1a");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, innerWidth, innerHeight);
+  let bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  bg.addColorStop(0, "#020202");
+  bg.addColorStop(1, "#1a1a1a");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Bat-signal glow ball
-  ctx.shadowBlur = 20;
+  // Bat orb
+  ctx.shadowBlur = 18;
   ctx.shadowColor = "#FFD700";
   ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.arc(bat.x, bat.y, bat.r, 0, Math.PI * 2);
   ctx.fillStyle = "#FFD700";
   ctx.fill();
   ctx.shadowBlur = 0;
 
-  // Gotham towers (hoops)
-  hoops.forEach(h => {
+  // Pipes
+  pipes.forEach(p => {
     ctx.fillStyle = "#0d0d0d";
-    ctx.fillRect(h.x, 0, hoopWidth, h.y - hoopGap / 2);
-    ctx.fillRect(h.x, h.y + hoopGap / 2, hoopWidth, innerHeight);
+    ctx.fillRect(p.x, 0, width, p.y - gap / 2);
+    ctx.fillRect(p.x, p.y + gap / 2, width, canvas.height);
 
     ctx.strokeStyle = "#FFD700";
     ctx.lineWidth = 2;
-    ctx.strokeRect(h.x, 0, hoopWidth, h.y - hoopGap / 2);
-    ctx.strokeRect(h.x, h.y + hoopGap / 2, hoopWidth, innerHeight);
+    ctx.strokeRect(p.x, 0, width, p.y - gap / 2);
+    ctx.strokeRect(p.x, p.y + gap / 2, width, canvas.height);
   });
 
   // Score
   ctx.fillStyle = "#FFD700";
-  ctx.font = "bold 34px Arial";
+  ctx.font = "bold 32px Arial";
   ctx.textAlign = "center";
-  ctx.fillText(score, innerWidth / 2, 60);
+  ctx.fillText(score, canvas.width / 2, 60);
 
+  // Game over
   if (gameOver) {
     ctx.fillStyle = "rgba(0,0,0,0.75)";
-    ctx.fillRect(0, 0, innerWidth, innerHeight);
-    ctx.fillStyle = "#FFD700";
-    ctx.font = "36px Arial Black";
-   ;
-    ctx.fillText("Don't work too hard 🦇", innerWidth / 2, innerHeight / 2);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillText("Tap to Rise Again", innerWidth / 2, innerHeight / 2 + 45);
+    ctx.fillStyle = "#FFD700";
+    ctx.font = "32px Arial Black";
+    ctx.fillText("Don't work too hard Con🦇", canvas.width / 2, canvas.height / 2);
+
+    ctx.font = "18px Arial";
+    ctx.fillText("Tap to Try Again", canvas.width / 2, canvas.height / 2 + 40);
   }
 }
 
-// Loop
+/* ======================
+   LOOP
+====================== */
 function loop() {
   update();
   draw();
