@@ -1,204 +1,190 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" >
 <head>
-<meta charset="UTF-8">
-<title>Flappy Bat – Average Mode</title>
-
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-<style>
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: black;
-}
-
-canvas {
-  display: block;
-}
-</style>
+  <meta charset="UTF-8" />
+  <title>Batman Flappy Bat - Phone Friendly</title>
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #020202, #1a1a1a);
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Arial Black', Arial, sans-serif;
+      color: #FFD700;
+      user-select: none;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: transparent;
+    }
+  </style>
 </head>
-
 <body>
-<canvas id="game"></canvas>
+  <canvas id="game"></canvas>
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
 
-<script>
-/* ======================
-   SETUP
-====================== */
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+    // Resize canvas for high DPI and full screen
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize();
+    window.addEventListener('resize', resize);
 
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resize();
-window.addEventListener("resize", resize);
+    // Game variables & settings
+    const gravity = 0.7;
+    const jumpPower = -7.5;
+    const pipeSpeed = 3;
+    const pipeGap = 150;
+    const pipeWidth = 70;
 
-/* ======================
-   AVERAGE MODE SETTINGS
-====================== */
-let gravity = 0.5;        // heavier than easy
-let jumpPower = -10.5;    // weaker jump
-let speed = 3;            // faster obstacles
-let gap = 150;            // tighter gap
+    let score = 0;
+    let gameOver = false;
 
-let score = 0;
-let gameOver = false;
+    const bat = {
+      x: canvas.width / 4,
+      y: canvas.height / 2,
+      radius: 14,
+      vy: 0
+    };
 
-/* ======================
-   PLAYER
-====================== */
-let bat = {
-  x: canvas.width * 0.25,
-  y: canvas.height / 2,
-  r: 14,
-  vy: 0
-};
+    let pipes = [];
 
-/* ======================
-   OBSTACLES
-====================== */
-let pipes = [];
-let width = 70;
+    // Spawn pipes at random heights
+    function spawnPipe() {
+      const y = Math.random() * (canvas.height - 280) + 140;
+      pipes.push({ x: canvas.width, y, passed: false });
+    }
+    setInterval(() => {
+      if (!gameOver) spawnPipe();
+    }, 1700);
 
-function spawnPipe() {
-  let y = Math.random() * (canvas.height - 280) + 140;
-  pipes.push({ x: canvas.width, y, passed: false });
-}
-setInterval(spawnPipe, 1700);
+    // Handle tap / click input
+    function flap(e) {
+      e.preventDefault();
+      if (gameOver) {
+        reset();
+        return;
+      }
+      bat.vy = jumpPower;
+    }
+    document.addEventListener('touchstart', flap, { passive: false });
+    document.addEventListener('mousedown', flap);
 
-/* ======================
-   INPUT
-====================== */
-document.addEventListener("touchstart", flap);
-document.addEventListener("mousedown", flap);
-
-function flap(e) {
-  e.preventDefault();
-
-  if (gameOver) {
-    reset();
-    return;
-  }
-
-  // remove downward momentum
-  if (bat.vy > 0) bat.vy = 0;
-  bat.vy += jumpPower;
-}
-
-/* ======================
-   RESET
-====================== */
-function reset() {
-  score = 0;
-  pipes = [];
-  bat.y = canvas.height / 2;
-  bat.vy = 0;
-  gameOver = false;
-}
-
-/* ======================
-   UPDATE
-====================== */
-function update() {
-  if (gameOver) return;
-
-  bat.vy += gravity;
-  bat.y += bat.vy;
-
-  if (bat.y < 0 || bat.y > canvas.height) {
-    gameOver = true;
-  }
-
-  pipes.forEach(p => {
-    p.x -= speed;
-
-    if (!p.passed && p.x + width < bat.x) {
-      score++;
-      p.passed = true;
+    // Reset game state
+    function reset() {
+      score = 0;
+      pipes = [];
+      bat.y = canvas.height / 2;
+      bat.vy = 0;
+      gameOver = false;
     }
 
-    if (
-      bat.x + bat.r > p.x &&
-      bat.x - bat.r < p.x + width &&
-      (bat.y - bat.r < p.y - gap / 2 ||
-       bat.y + bat.r > p.y + gap / 2)
-    ) {
-      gameOver = true;
+    // Update game logic
+    function update() {
+      if (gameOver) return;
+
+      bat.vy += gravity;
+      bat.y += bat.vy;
+
+      if (bat.y < 0 || bat.y > canvas.height) {
+        gameOver = true;
+      }
+
+      pipes.forEach(pipe => {
+        pipe.x -= pipeSpeed;
+
+        // Score increment when passing pipes
+        if (!pipe.passed && pipe.x + pipeWidth < bat.x) {
+          score++;
+          pipe.passed = true;
+        }
+
+        // Collision detection with pipes (top and bottom)
+        if (
+          bat.x + bat.radius > pipe.x &&
+          bat.x - bat.radius < pipe.x + pipeWidth &&
+          (bat.y - bat.radius < pipe.y - pipeGap / 2 ||
+           bat.y + bat.radius > pipe.y + pipeGap / 2)
+        ) {
+          gameOver = true;
+        }
+      });
+
+      // Remove pipes that left screen
+      pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
     }
-  });
 
-  pipes = pipes.filter(p => p.x + width > 0);
-}
+    // Draw everything on canvas
+    function draw() {
+      // Clear with Gotham gradient background
+      const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      bg.addColorStop(0, '#020202');
+      bg.addColorStop(1, '#1a1a1a');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-/* ======================
-   DRAW
-====================== */
-function draw() {
-  // Gotham background
-  let bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  bg.addColorStop(0, "#020202");
-  bg.addColorStop(1, "#1a1a1a");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Draw glowing bat orb
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = '#FFD700';
+      ctx.beginPath();
+      ctx.arc(bat.x, bat.y, bat.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFD700';
+      ctx.fill();
+      ctx.shadowBlur = 0;
 
-  // Bat orb
-  ctx.shadowBlur = 18;
-  ctx.shadowColor = "#FFD700";
-  ctx.beginPath();
-  ctx.arc(bat.x, bat.y, bat.r, 0, Math.PI * 2);
-  ctx.fillStyle = "#FFD700";
-  ctx.fill();
-  ctx.shadowBlur = 0;
+      // Draw Gotham towers (pipes)
+      pipes.forEach(pipe => {
+        // Dark base
+        ctx.fillStyle = '#0d0d0d';
+        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.y - pipeGap / 2);
+        ctx.fillRect(pipe.x, pipe.y + pipeGap / 2, pipeWidth, canvas.height);
 
-  // Pipes
-  pipes.forEach(p => {
-    ctx.fillStyle = "#0d0d0d";
-    ctx.fillRect(p.x, 0, width, p.y - gap / 2);
-    ctx.fillRect(p.x, p.y + gap / 2, width, canvas.height);
+        // Gold glowing outlines
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.y - pipeGap / 2);
+        ctx.strokeRect(pipe.x, pipe.y + pipeGap / 2, pipeWidth, canvas.height);
+      });
 
-    ctx.strokeStyle = "#FFD700";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(p.x, 0, width, p.y - gap / 2);
-    ctx.strokeRect(p.x, p.y + gap / 2, width, canvas.height);
-  });
+      // Draw score
+      ctx.fillStyle = '#FFD700';
+      ctx.font = 'bold 36px Arial Black';
+      ctx.textAlign = 'center';
+      ctx.fillText(score, canvas.width / 2, 60);
 
-  // Score
-  ctx.fillStyle = "#FFD700";
-  ctx.font = "bold 32px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(score, canvas.width / 2, 60);
+      // Game over message
+      if (gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Game over
-  if (gameOver) {
-    ctx.fillStyle = "rgba(0,0,0,0.75)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#FFD700';
+        ctx.font = '32px Arial Black';
+        ctx.fillText("Don't work too hard 🦇", canvas.width / 2, canvas.height / 2);
 
-    ctx.fillStyle = "#FFD700";
-    ctx.font = "32px Arial Black";
-    ctx.fillText("Don't work too hard Con🦇", canvas.width / 2, canvas.height / 2);
+        ctx.font = '20px Arial';
+        ctx.fillText("Tap to Rise Again", canvas.width / 2, canvas.height / 2 + 50);
+      }
+    }
 
-    ctx.font = "18px Arial";
-    ctx.fillText("Tap to Try Again", canvas.width / 2, canvas.height / 2 + 40);
-  }
-}
-
-/* ======================
-   LOOP
-====================== */
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-loop();
-</script>
-
+    // Game loop
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
 </body>
 </html>
