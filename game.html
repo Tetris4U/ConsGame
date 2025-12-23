@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cons Game</title>
+
+<meta name="viewport"
+content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  touch-action: none;
+}
+
+canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+</style>
+</head>
+
+<body>
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = innerWidth * dpr;
+  canvas.height = innerHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resize();
+addEventListener("resize", resize);
+
+// Game variables
+let gravity = 0.6;
+let jump = -9.5;
+let score = 0;
+let gameOver = false;
+
+// Ball (Bat-signal orb)
+let ball = {
+  x: innerWidth * 0.25,
+  y: innerHeight / 2,
+  r: 14,
+  vy: 0
+};
+
+// Hoops (Gotham towers)
+let hoops = [];
+let hoopGap = 170;
+let hoopWidth = 70;
+let speed = 2.7;
+
+function spawnHoop() {
+  let y = Math.random() * (innerHeight - 320) + 160;
+  hoops.push({ x: innerWidth, y, passed: false });
+}
+setInterval(spawnHoop, 1800);
+
+// Controls
+addEventListener("touchstart", input, { passive: false });
+addEventListener("mousedown", input);
+
+function input(e) {
+  e.preventDefault();
+  if (!gameOver) ball.vy = jump;
+  else reset();
+}
+
+function reset() {
+  score = 0;
+  hoops = [];
+  ball.y = innerHeight / 2;
+  ball.vy = 0;
+  gameOver = false;
+}
+
+// Update
+function update() {
+  if (gameOver) return;
+
+  ball.vy += gravity;
+  ball.y += ball.vy;
+
+  if (ball.y < 0 || ball.y > innerHeight) gameOver = true;
+
+  hoops.forEach(h => {
+    h.x -= speed;
+
+    if (!h.passed && h.x + hoopWidth < ball.x) {
+      score++;
+      h.passed = true;
+    }
+
+    if (
+      ball.x + ball.r > h.x &&
+      ball.x - ball.r < h.x + hoopWidth &&
+      (ball.y - ball.r < h.y - hoopGap / 2 ||
+       ball.y + ball.r > h.y + hoopGap / 2)
+    ) gameOver = true;
+  });
+
+  hoops = hoops.filter(h => h.x + hoopWidth > 0);
+}
+
+// Draw
+function draw() {
+  // Gotham background
+  let grad = ctx.createLinearGradient(0, 0, 0, innerHeight);
+  grad.addColorStop(0, "#020202");
+  grad.addColorStop(1, "#1a1a1a");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, innerWidth, innerHeight);
+
+  // Bat-signal glow ball
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = "#FFD700";
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fillStyle = "#FFD700";
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Gotham towers (hoops)
+  hoops.forEach(h => {
+    ctx.fillStyle = "#0d0d0d";
+    ctx.fillRect(h.x, 0, hoopWidth, h.y - hoopGap / 2);
+    ctx.fillRect(h.x, h.y + hoopGap / 2, hoopWidth, innerHeight);
+
+    ctx.strokeStyle = "#FFD700";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(h.x, 0, hoopWidth, h.y - hoopGap / 2);
+    ctx.strokeRect(h.x, h.y + hoopGap / 2, hoopWidth, innerHeight);
+  });
+
+  // Score
+  ctx.fillStyle = "#FFD700";
+  ctx.font = "bold 34px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(score, innerWidth / 2, 60);
+
+  if (gameOver) {
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, 0, innerWidth, innerHeight);
+    ctx.fillStyle = "#FFD700";
+    ctx.font = "36px Arial Black";
+   ;
+    ctx.fillText("Don't work too hard 🦇", innerWidth / 2, innerHeight / 2);
+
+    ctx.fillText("Tap to Rise Again", innerWidth / 2, innerHeight / 2 + 45);
+  }
+}
+
+// Loop
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+
+</body>
+</html>
